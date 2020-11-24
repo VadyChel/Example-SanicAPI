@@ -37,6 +37,11 @@ messages = {
 		"message": {
 			'succefly': 'Creating user was succefly'
 		}
+	},
+	"succefly_delete_user": {
+		"message": {
+			"succefly": "Deleting user was succefly"
+		}
 	}
 }
 
@@ -81,12 +86,36 @@ async def create_user(request):
 
 @app.delete('/users/<id>')
 async def delete_user(request, id):
-	pass
-
-
+	if request.json is not None:
+		if "password" in request.json.keys():
+			state = await Database().delete_user(
+				user_id=id,
+				password=request.json.get("password")
+			)
+			if not state:
+				return response.json(messages["error_valid_password"])
+			return response.json(messages["succefly_delete_user"])
+		else:
+			return response.json(messages["error_valid_json"])
+	else:
+		return response.json(messages["error_valid_json"])
+			
 @app.patch('/users/<id>')
 async def edit_user(request, id):
-	pass
+	if request.json is not None:
+		if "password" in request.json.keys():
+			state = await Database().delete_user(
+				user_id=id,
+				password=request.json.get("password"),
+				params=request.json
+			)
+			if not state:
+				return response.json(messages["error_valid_password"])
+			return response.json(messages["succefly_delete_user"])
+		else:
+			return response.json(messages["error_valid_json"])
+	else:
+		return response.json(messages["error_valid_json"])
 
 
 if __name__ == '__main__':

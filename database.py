@@ -66,8 +66,38 @@ class Database:
 		await database.close()
 		return True
 
-	async def delete_user(self):
-		pass
+	async def delete_user(
+		self, 
+		user_id:str, 
+		password:str
+	) -> bool:
+		database = await aiosqlite.connect("database.db")
+		pass_hash = hashlib.md5(password.encode()).hexdigest()
+		cursor = await database.execute(f"""SELECT pass_hash FROM users WHERE user_id = "{user_id}" """)
+		database_pass_hash = (await cursor.fetchone())[0]
+		await cursor.close()
 
-	async def edit_user(self):
-		pass
+		if pass_hash != database_pass_hash:
+			return False
+
+		await database.execute(f"""DELETE FROM users WHERE user_id = "{user_id}" """)
+		await database.commit()
+		await database.close()
+		
+		return True
+
+	async def edit_user(
+		self,
+		user_id:str,
+		password:str,
+		params:dict
+	) -> bool:
+		database = await aiosqlite.connect("database.db")
+		if "name" in params.keys():
+			field = "name"
+			value = params.get("name")
+		elif "email" in params.keys():
+			field = "e_mail"
+			value = params.get("email")
+		else:
+			return True
