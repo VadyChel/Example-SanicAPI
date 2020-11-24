@@ -42,6 +42,11 @@ messages = {
 		"message": {
 			"succefly": "Deleting user was succefly"
 		}
+	},
+	"succefly_edit_user": {
+		"message": {
+			"succefly": "Editing user was succefly"
+		}
 	}
 }
 
@@ -57,7 +62,7 @@ async def get_users(request):
 @app.get('/users/<id>')
 async def get_user(request, id):
 	data = await Database().get_user(user_id=id)
-	if not data:
+	if data == 1:
 		return response.json(messages["error_no_user"])
 	return response.json(data)
 
@@ -68,13 +73,13 @@ async def create_user(request):
 		if sorted(request.json.keys()) == sorted(fields):
 			template = re.compile("(^|\s)[-a-z0-9_.]+@([-a-z0-9]+\.)+[a-z]{2,6}(\s|$)")
 			if template.match(request.json.get("email")):
-				status = await Database().create_user(
+				state = await Database().create_user(
 					user_id=str(uuid.uuid4()),
 					password=request.json.get("password"),
 					user_name=request.json.get("name"),
 					user_email=request.json.get("email")
 				)
-				if not status:
+				if state == 1:
 					return response.json(messages["error_mail_already_in_use"])
 				return response.json(messages["succefly_create_user"])
 			else:
@@ -92,7 +97,9 @@ async def delete_user(request, id):
 				user_id=id,
 				password=request.json.get("password")
 			)
-			if not state:
+			if state == 1:
+				return response.json(messages["error_no_user"])
+			elif state == 2:
 				return response.json(messages["error_valid_password"])
 			return response.json(messages["succefly_delete_user"])
 		else:
@@ -104,14 +111,20 @@ async def delete_user(request, id):
 async def edit_user(request, id):
 	if request.json is not None:
 		if "password" in request.json.keys():
-			state = await Database().delete_user(
+			if "email" in request.json.keys():
+				template = re.compile("(^|\s)[-a-z0-9_.]+@([-a-z0-9]+\.)+[a-z]{2,6}(\s|$)")
+				if not template.match(request.json.get("email")):
+					return response.json(messages["error_valid_email"])
+
+			state = await Database().edit_user(
 				user_id=id,
-				password=request.json.get("password"),
 				params=request.json
 			)
-			if not state:
+			if state == 1:
 				return response.json(messages["error_valid_password"])
-			return response.json(messages["succefly_delete_user"])
+			elif state == 2:
+				return response.json(messages["error_no_user"])
+			return response.json(messages["succefly_edit_user"])
 		else:
 			return response.json(messages["error_valid_json"])
 	else:

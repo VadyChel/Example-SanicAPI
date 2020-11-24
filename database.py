@@ -28,21 +28,22 @@ class Database:
 		} for user in data]
 
 	async def get_user(self, user_id:str) -> typing.Union[tuple, bool]:
-		try:
-			database = await aiosqlite.connect("database.db")
-			cursor = await database.execute(f"""SELECT * FROM users WHERE user_id = "{user_id}" """)
-			data = await cursor.fetchone()
-			await cursor.close()
-			await database.close()
+		database = await aiosqlite.connect("database.db")
+		cursor = await database.execute(f"""SELECT * FROM users WHERE user_id = "{user_id}" """)
+		data = await cursor.fetchone()
 
-			return {
-				"id": data[0],
-				"pass_hash": data[1],
-				"name": data[2],
-				"email": data[3]
-			}
-		except:
-			return False
+		if data is None:
+			return 1
+
+		await cursor.close()
+		await database.close()
+
+		return {
+			"id": data[0],
+			"pass_hash": data[1],
+			"name": data[2],
+			"email": data[3]
+		}
 
 	async def create_user(
 		self, 
@@ -52,7 +53,7 @@ class Database:
 		user_email:str
 	) -> typing.Union[bool, None]:
 		if user_email in [user["email"] for user in await self.get_users()]:
-			return False
+			return 1
 
 		database = await aiosqlite.connect("database.db")
 		pass_hash = hashlib.md5(password.encode()).hexdigest()
@@ -64,40 +65,65 @@ class Database:
 		)""")
 		await database.commit()
 		await database.close()
-		return True
+		return 0
 
 	async def delete_user(
 		self, 
 		user_id:str, 
 		password:str
 	) -> bool:
-		database = await aiosqlite.connect("database.db")
 		pass_hash = hashlib.md5(password.encode()).hexdigest()
+
+		database = await aiosqlite.connect("database.db")
 		cursor = await database.execute(f"""SELECT pass_hash FROM users WHERE user_id = "{user_id}" """)
-		database_pass_hash = (await cursor.fetchone())[0]
+		data = await cursor.fetchone()
+
+		if data is None:
+			return 1
+
+		database_pass_hash = data[0]
 		await cursor.close()
 
 		if pass_hash != database_pass_hash:
-			return False
+			return 2
 
 		await database.execute(f"""DELETE FROM users WHERE user_id = "{user_id}" """)
 		await database.commit()
 		await database.close()
 		
-		return True
+		return 0
 
 	async def edit_user(
 		self,
 		user_id:str,
-		password:str,
 		params:dict
 	) -> bool:
+		if "email" not in params.keys() and "name" not in params.keys():
+			return 0
+
+		pass_hash = hashlib.md5(params.get("password").encode()).hexdigest()
+
 		database = await aiosqlite.connect("database.db")
-		if "name" in params.keys():
-			field = "name"
-			value = params.get("name")
-		elif "email" in params.keys():
-			field = "e_mail"
-			value = params.get("email")
-		else:
-			return True
+		cursor = await database.execute(f"""SELECT pass_hash FROM users WHERE user_id = "{user_id}" """)
+		data = await cursor.fetchone()
+
+		if data is None:
+			return 2
+
+		database_pass_hash = data[0]
+		await cursor.close()
+
+		if pass_hash != database_pass_hash:
+			return 1
+
+		database = await aiosqlite.connect("database.db")
+		for key, value in params.items():
+			if key == "name":
+				await database.execute(f"""UPDATE users SET name = "{params.get("name")}" WHERE user_id = "{user_id}" """)
+			elif key == "email":
+				await database.execute(f"""UPDATE users SET e_mail = "{params.get("email")}" WHERE user_id = "{user_id}" """)
+
+		await database.commit()
+		await database.close()
+
+		return 0
