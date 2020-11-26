@@ -4,7 +4,7 @@ import hashlib
 
 class Database:
 	async def prepare_to_start(self) -> None:
-		database = await aiosqlite.connect("database.db")
+		database = await aiosqlite.connect("core/database.db")
 		cursor = await database.execute("""CREATE TABLE IF NOT EXISTS users (
 			user_id TEXT,
 			pass_hash TEXT,
@@ -15,7 +15,7 @@ class Database:
 		await cursor.close()
 
 	async def get_users(self) -> list:
-		database = await aiosqlite.connect("database.db")
+		database = await aiosqlite.connect("core/database.db")
 		cursor = await database.execute("""SELECT * FROM users""")
 		data = await cursor.fetchall()
 		await cursor.close()
@@ -27,8 +27,8 @@ class Database:
 			"email": user[3]
 		} for user in data]
 
-	async def get_user(self, user_id:str) -> typing.Union[tuple, bool]:
-		database = await aiosqlite.connect("database.db")
+	async def get_user(self, user_id:str) -> typing.Union[dict, int]:
+		database = await aiosqlite.connect("core/database.db")
 		cursor = await database.execute(f"""SELECT * FROM users WHERE user_id = "{user_id}" """)
 		data = await cursor.fetchone()
 
@@ -51,11 +51,11 @@ class Database:
 		password:str, 
 		user_name:str, 
 		user_email:str
-	) -> typing.Union[bool, None]:
+	) -> int:
 		if user_email in [user["email"] for user in await self.get_users()]:
 			return 1
 
-		database = await aiosqlite.connect("database.db")
+		database = await aiosqlite.connect("core/database.db")
 		pass_hash = hashlib.md5(password.encode()).hexdigest()
 		await database.execute(f"""INSERT INTO users (user_id, pass_hash, name, e_mail) VALUES (
 			"{user_id}",
@@ -71,10 +71,10 @@ class Database:
 		self, 
 		user_id:str, 
 		password:str
-	) -> bool:
+	) -> int:
 		pass_hash = hashlib.md5(password.encode()).hexdigest()
 
-		database = await aiosqlite.connect("database.db")
+		database = await aiosqlite.connect("core/database.db")
 		cursor = await database.execute(f"""SELECT pass_hash FROM users WHERE user_id = "{user_id}" """)
 		data = await cursor.fetchone()
 
@@ -97,13 +97,13 @@ class Database:
 		self,
 		user_id:str,
 		params:dict
-	) -> bool:
+	) -> int:
 		if "email" not in params.keys() and "name" not in params.keys():
 			return 0
 
 		pass_hash = hashlib.md5(params.get("password").encode()).hexdigest()
 
-		database = await aiosqlite.connect("database.db")
+		database = await aiosqlite.connect("core/database.db")
 		cursor = await database.execute(f"""SELECT pass_hash FROM users WHERE user_id = "{user_id}" """)
 		data = await cursor.fetchone()
 
@@ -116,7 +116,6 @@ class Database:
 		if pass_hash != database_pass_hash:
 			return 1
 
-		database = await aiosqlite.connect("database.db")
 		for key, value in params.items():
 			if key == "name":
 				await database.execute(f"""UPDATE users SET name = "{params.get("name")}" WHERE user_id = "{user_id}" """)
