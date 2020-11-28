@@ -4,7 +4,7 @@ import re
 from .database import Database
 from sanic import response, Blueprint
 
-bp = Blueprint("ApiV1")
+bp = Blueprint("api-v2", url_prefix='/api', version="v2")
 
 messages = {
 	"error_valid_json": {
