@@ -1,4 +1,4 @@
-from core.api import bp
+from esa.api import bp
 from sanic import Sanic
 
 app = Sanic(__name__)
